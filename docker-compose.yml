@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: superhero-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: superhero_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - superhero-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: --default-authentication-plugin=mysql_native_password
+
+  # App (optional - use: docker-compose up app)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: superhero-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/superhero_db?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    networks:
+      - superhero-network
+    restart: unless-stopped
+    profiles:
+      - full
+
+networks:
+  superhero-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
